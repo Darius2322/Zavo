@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /manage-store-7x9
+Disallow: /checkout
+Disallow: /order/
+Disallow: /track
+Disallow: /cart
+Sitemap: /sitemap.xml

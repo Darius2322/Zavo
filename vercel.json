@@ -1,0 +1,1 @@
+{"rewrites":[{"source":"/product/:slug","has":[{"type":"header","key":"user-agent","value":"(?i).*(facebookexternalhit|whatsapp|twitterbot|slackbot|linkedinbot|telegrambot|discordbot).*"}],"destination":"/api/og?slug=:slug"},{"source":"/(.*)","destination":"/index.html"}]}
