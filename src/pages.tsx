@@ -9,12 +9,25 @@ const first = (p: any) => [...(p.product_images || [])].sort((a: any, b: any) =>
 const inStock = (p: any) => (p.product_variants || []).some((v: any) => v.stock > 0)
 
 function Card({ p }: { p: any }) {
-  const { wish, toggleWish } = useStore(); const f = first(p); const on = wish.includes(p.id)
+  const { wish, toggleWish } = useStore(); const f = first(p); const on = wish.includes(p.id); const out = !inStock(p)
   return <div className="card"><Link to={'/product/' + p.slug}>
-    {f ? <img src={img(f)} alt={p.name} loading="lazy" /> : <div className="noimg" />}
-    <h3>{p.name}</h3></Link>
-    <p>{kes(p.price_kes)} {p.compare_at_kes && <s>{kes(p.compare_at_kes)}</s>} {!inStock(p) && <em>Sold out</em>}</p>
-    <button className="heart" aria-label={on ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><Heart size={18} fill={on ? 'currentColor' : 'none'} /></button></div>
+    <div className="ph">{f ? <img src={img(f)} alt={p.name} loading="lazy" /> : <div className="noimg" />}
+      {out ? <span className="tag">Sold out</span> : p.compare_at_kes ? <span className="tag sale">Sale</span> : null}</div>
+    <h3>{p.name}</h3><p className="pr"><span className={p.compare_at_kes ? 'now' : ''}>{kes(p.price_kes)}</span>{p.compare_at_kes && <s>{kes(p.compare_at_kes)}</s>}</p></Link>
+    <button className="heart" aria-label={on ? 'Remove from wishlist' : 'Add to wishlist'} onClick={() => toggleWish(p.id)}><Heart size={16} fill={on ? 'currentColor' : 'none'} /></button></div>
+}
+function Hero() {
+  const [v, setV] = useState<any>(null)
+  useEffect(() => { supabase.from('store_settings').select('value').eq('key', 'page:home').maybeSingle().then(r => setV(r.data?.value || null)) }, [])
+  return <div className="hero"><h1>{v?.title || 'New in'}</h1>{v?.body && <p>{v.body}</p>}<Link className="btn" to="/shop">Shop all</Link></div>
+}
+function CatRow() {
+  const [c, setC] = useState<any[]>([]); useEffect(() => { supabase.from('categories').select('id,name').order('sort_order').then(r => setC(r.data || [])) }, [])
+  return c.length ? <nav className="cats" aria-label="Categories">{c.map(x => <Link key={x.id} to={'/shop?cat=' + x.id}>{x.name}</Link>)}</nav> : null
+}
+export function Announce() {
+  const [t, setT] = useState(''); useEffect(() => { supabase.from('store_settings').select('value').eq('key', 'announcement').maybeSingle().then(r => setT(typeof r.data?.value === 'string' ? r.data.value : '')) }, [])
+  return t ? <div className="announce">{t}</div> : null
 }
 
 export function Shop({ home, sale, collection }: { home?: boolean; sale?: boolean; collection?: string }) {
@@ -39,7 +52,7 @@ export function Shop({ home, sale, collection }: { home?: boolean; sale?: boolea
   const set = (k: string, v: string) => { const n = new URLSearchParams(sp); v ? n.set(k, v) : n.delete(k); setSp(n) }
   const dirty = q || cat || brand || fs || fc || minP || maxP || stockOnly
   return <section className="wrap">
-    <h1>{collection ? title : sale ? 'Sale' : home ? 'New arrivals' : 'Shop'}</h1>
+    {home ? <><Hero /><CatRow /></> : <h1>{collection ? title : sale ? 'Sale' : 'Shop'}</h1>}
     {!home && <div className="filters">
       <select aria-label="Category" value={cat} onChange={e => set('cat', e.target.value)}><option value="">All categories</option>{cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
       {brands.length > 0 && <select aria-label="Brand" value={brand} onChange={e => set('brand', e.target.value)}><option value="">All brands</option>{brands.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
@@ -60,11 +73,11 @@ export function Shop({ home, sale, collection }: { home?: boolean; sale?: boolea
 }
 function Featured() {
   const [r, setR] = useState<any[]>([]); useEffect(() => { supabase.from('products').select(SEL).eq('featured', true).limit(8).then(x => setR(x.data || [])) }, [])
-  return r.length ? <><h2>Featured</h2><div className="grid">{r.map(p => <Card key={p.id} p={p} />)}</div></> : null
+  return r.length ? <><h2 className="sec">Featured</h2><div className="grid">{r.map(p => <Card key={p.id} p={p} />)}</div></> : null
 }
 function Collections() {
   const [r, setR] = useState<any[]>([]); useEffect(() => { supabase.from('collections').select('slug,name').order('sort_order').then(x => setR(x.data || [])) }, [])
-  return r.length ? <><h2>Collections</h2><p>{r.map(c => <Link key={c.slug} className="chip" to={'/collection/' + c.slug}>{c.name}</Link>)}</p></> : null
+  return r.length ? <><h2 className="sec">Collections</h2><p>{r.map(c => <Link key={c.slug} className="chip" to={'/collection/' + c.slug}>{c.name}</Link>)}</p></> : null
 }
 export const CollectionPage = () => { const { slug } = useParams(); return <Shop collection={slug} key={slug} /> }
 export function Newsletter() {

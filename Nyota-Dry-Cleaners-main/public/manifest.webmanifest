@@ -1,0 +1,13 @@
+{
+  "name": "Nyota Dry Cleaners & Laundry",
+  "short_name": "Nyota Laundry",
+  "description": "Book laundry, track requests, and reach Nyota Dry Cleaners in Kisii.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F8FF",
+  "theme_color": "#0638B8",
+  "icons": [
+    { "src": "/logo-mark-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/logo-mark-512.png", "sizes": "192x192", "type": "image/png" }
+  ]
+}

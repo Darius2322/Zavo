@@ -3,36 +3,9 @@ import { supabase, kes } from './lib'
 
 const ORDER = ['received', 'awaiting_confirmation', 'confirmed', 'processing', 'ready', 'out_for_delivery', 'completed', 'cancelled']
 const PAY = ['method_selected', 'awaiting_confirmation', 'confirmed', 'failed', 'refunded']
-const PAGES = ['about', 'size-guide', 'delivery', 'returns', 'privacy', 'terms']
+const PAGES = ['home', 'about', 'size-guide', 'delivery', 'returns', 'privacy', 'terms']
 
-export default function Admin() {
-  const [ok, setOk] = useState<null | boolean>(null); const [session, setSession] = useState<any>(undefined); const [tab, setTab] = useState('dashboard'); const [needMfa, setNeedMfa] = useState(false); const [err, setErr] = useState('')
-  useEffect(() => { const m = document.createElement('meta'); m.name = 'robots'; m.content = 'noindex,nofollow'; document.head.appendChild(m); return () => { m.remove() } }, [])
-  useEffect(() => { supabase.auth.getSession().then(r => setSession(r.data.session)); const { data } = supabase.auth.onAuthStateChange((_, s) => setSession(s)); return () => data.subscription.unsubscribe() }, [])
-  useEffect(() => { if (session) supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(r => setNeedMfa(r.data?.nextLevel === 'aal2' && r.data?.currentLevel !== 'aal2')) }, [session])
-  useEffect(() => { if (session) supabase.from('admin_profiles').select('active').eq('user_id', session.user.id).maybeSingle().then(r => setOk(!!r.data?.active)); else setOk(null) }, [session])
-  if (session === undefined) return <p className="wrap">Loading…</p>
-  if (!session) return <Login />
-  if (needMfa) return <MfaGate />
-  if (ok === null) return <p className="wrap">Checking access…</p>
-  if (!ok) return <section className="wrap"><h1>Access denied</h1><p>This account is not a staff account.</p><button className="btn" onClick={() => supabase.auth.signOut()}>Sign out</button></section>
-  return <section className="wrap"><div className="row"><h1>ZAVO admin</h1>{['dashboard', 'orders', 'products', 'catalogue', 'reviews', 'enquiries', 'content', 'system'].map(t => <button key={t} className={tab === t ? 'chip on' : 'chip'} onClick={() => setTab(t)}>{t}</button>)}
-    <button className="chip" onClick={() => supabase.auth.signOut()}>Sign out</button></div>{err && <p role="alert" className="err">{err}</p>}
-    {tab === 'catalogue' && <Catalogue fail={setErr} />}{tab === 'reviews' && <ReviewsAdmin fail={setErr} />}{tab === 'dashboard' && <Dashboard fail={setErr} />}{tab === 'system' && <System fail={setErr} />}{tab === 'orders' && <Orders fail={setErr} />}{tab === 'products' && <Products fail={setErr} />}{tab === 'enquiries' && <Enquiries fail={setErr} />}{tab === 'content' && <Content fail={setErr} />}</section>
-}
-
-function Login() {
-  const [e, setE] = useState(''); const [p, setP] = useState(''); const [show, setShow] = useState(false); const [msg, setMsg] = useState('')
-  const go = async (ev: React.FormEvent) => { ev.preventDefault(); const r = await supabase.auth.signInWithPassword({ email: e, password: p }); if (r.error) setMsg('Sign-in failed. Check your email and password.') }
-  const reset = async () => { if (!e) return setMsg('Enter your email first.'); await supabase.auth.resetPasswordForEmail(e, { redirectTo: location.href }); setMsg('If that account exists, a reset email was sent.') }
-  return <section className="wrap"><h1>Staff sign in</h1><form className="form" onSubmit={go}>
-    <label>Email<input type="email" required autoComplete="username" value={e} onChange={x => setE(x.target.value)} /></label>
-    <label>Password<input type={show ? 'text' : 'password'} required autoComplete="current-password" value={p} onChange={x => setP(x.target.value)} /></label>
-    <label><input type="checkbox" checked={show} onChange={x => setShow(x.target.checked)} /> Show password</label>
-    {msg && <p role="alert" className="err">{msg}</p>}<button className="btn">Sign in</button><button type="button" onClick={reset}>Forgot password</button></form></section>
-}
-
-function Orders({ fail }: { fail: (s: string) => void }) {
+export function Orders({ fail }: { fail: (s: string) => void }) {
   const [rows, setRows] = useState<any[]>([]); const [q, setQ] = useState(''); const [st, setSt] = useState('')
   const load = () => { let b = supabase.from('orders').select('*,order_items(*)').order('created_at', { ascending: false }).limit(50)
     if (st) b = b.eq('status', st); if (q) b = b.ilike('reference', `%${q}%`); b.then(r => r.error ? fail(r.error.message) : setRows(r.data || [])) }
@@ -49,7 +22,7 @@ function Orders({ fail }: { fail: (s: string) => void }) {
       <label>Internal note<textarea defaultValue={o.internal_notes || ''} onBlur={e => supabase.from('orders').update({ internal_notes: e.target.value }).eq('id', o.id).then(r => fail(r.error?.message || ''))} /></label></details>)}</div>
 }
 
-function Products({ fail }: { fail: (s: string) => void }) {
+export function Products({ fail }: { fail: (s: string) => void }) {
   const [rows, setRows] = useState<any[]>([]); const [cats, setCats] = useState<any[]>([]); const [brands, setBrands] = useState<any[]>([]); const [f, setF] = useState<any>({ status: 'draft' })
   const load = () => { supabase.from('products').select('*,product_variants(*),product_images(id,path,sort_order)').order('created_at', { ascending: false }).then(r => r.error ? fail(r.error.message) : setRows(r.data || []))
     supabase.from('categories').select('*').order('sort_order').then(r => setCats(r.data || [])); supabase.from('brands').select('*').then(r => setBrands(r.data || [])) }
@@ -88,25 +61,26 @@ function Products({ fail }: { fail: (s: string) => void }) {
       {p.product_variants.map((v: any) => <p key={v.id}>{v.size} {v.colour}: {v.stock} in stock <button onClick={() => adjust(v.id)}>Adjust</button>{v.stock <= v.low_stock_threshold && ' (low)'}</p>)}</div>)}</div>
 }
 
-function Enquiries({ fail }: { fail: (s: string) => void }) {
+export function Enquiries({ fail }: { fail: (s: string) => void }) {
   const [rows, setRows] = useState<any[]>([]); const load = () => supabase.from('contact_messages').select('*').order('created_at', { ascending: false }).limit(100).then(r => r.error ? fail(r.error.message) : setRows(r.data || []))
   useEffect(() => { load() }, [])
   return <div>{!rows.length && <p>No enquiries.</p>}{rows.map(m => <div className="line" style={{ display: 'block' }} key={m.id}><b>{m.name}</b> · {m.contact} · {m.subject}<p>{m.message}</p>
     <select value={m.state} onChange={e => supabase.from('contact_messages').update({ state: e.target.value }).eq('id', m.id).then(r => { fail(r.error?.message || ''); load() })}><option value="new">new</option><option value="in_progress">in progress</option><option value="resolved">resolved</option></select></div>)}</div>
 }
 
-function Content({ fail }: { fail: (s: string) => void }) {
-  const [k, setK] = useState('about'); const [title, setTitle] = useState(''); const [body, setBody] = useState(''); const [fee, setFee] = useState(''); const [done, setDone] = useState('')
+export function Content({ fail }: { fail: (s: string) => void }) {
+  const [k, setK] = useState('about'); const [title, setTitle] = useState(''); const [body, setBody] = useState(''); const [fee, setFee] = useState(''); const [ann, setAnn] = useState(''); const [done, setDone] = useState('')
   useEffect(() => { supabase.from('store_settings').select('value').eq('key', 'page:' + k).maybeSingle().then(r => { setTitle(r.data?.value?.title || ''); setBody(r.data?.value?.body || '') }) }, [k])
-  useEffect(() => { supabase.from('store_settings').select('value').eq('key', 'delivery_fee_kes').maybeSingle().then(r => setFee(r.data ? String(r.data.value) : '')) }, [])
+  useEffect(() => { supabase.from('store_settings').select('value').eq('key', 'delivery_fee_kes').maybeSingle().then(r => setFee(r.data ? String(r.data.value) : '')); supabase.from('store_settings').select('value').eq('key', 'announcement').maybeSingle().then(r => setAnn(typeof r.data?.value === 'string' ? r.data.value : '')) }, [])
   const save = async () => { const r = await supabase.from('store_settings').upsert({ key: 'page:' + k, value: { title, body }, is_public: true, updated_at: new Date().toISOString() }); fail(r.error?.message || ''); setDone(r.error ? '' : 'Saved.') }
   const saveFee = async () => { const r = await supabase.from('store_settings').upsert({ key: 'delivery_fee_kes', value: +fee || 0, is_public: false, updated_at: new Date().toISOString() }); fail(r.error?.message || ''); setDone(r.error ? '' : 'Delivery fee saved.') }
+  const saveAnn = async () => { const r = await supabase.from('store_settings').upsert({ key: 'announcement', value: ann, is_public: true, updated_at: new Date().toISOString() }); fail(r.error?.message || ''); setDone(r.error ? '' : 'Announcement saved.') }
   return <div className="form"><label>Page<select value={k} onChange={e => setK(e.target.value)}>{PAGES.map(p => <option key={p}>{p}</option>)}</select></label>
     <label>Title<input value={title} onChange={e => setTitle(e.target.value)} /></label><label>Content (blank line starts a new paragraph)<textarea rows={12} value={body} onChange={e => setBody(e.target.value)} /></label>
-    <button className="btn" onClick={save}>Save page</button><label>Delivery fee (KES)<input type="number" min={0} value={fee} onChange={e => setFee(e.target.value)} /></label><button className="btn ghost" onClick={saveFee}>Save delivery fee</button>{done && <p role="status">{done}</p>}</div>
+    <button className="btn" onClick={save}>Save page</button><label>Announcement bar text (blank hides it)<input value={ann} onChange={e => setAnn(e.target.value)} /></label><button className="btn ghost" onClick={saveAnn}>Save announcement</button><label>Delivery fee (KES)<input type="number" min={0} value={fee} onChange={e => setFee(e.target.value)} /></label><button className="btn ghost" onClick={saveFee}>Save delivery fee</button>{done && <p role="status">{done}</p>}</div>
 }
 
-function Dashboard({ fail }: { fail: (s: string) => void }) {
+export function Dashboard({ fail }: { fail: (s: string) => void }) {
   const [from, setFrom] = useState(''); const [o, setO] = useState<any[]>([]); const [v, setV] = useState<any[]>([]); const [m, setM] = useState<any[]>([])
   useEffect(() => { let b = supabase.from('orders').select('status,payment_status,total_kes,created_at').limit(2000); if (from) b = b.gte('created_at', from)
     b.then(r => r.error ? fail(r.error.message) : setO(r.data || [])) }, [from])
@@ -119,7 +93,7 @@ function Dashboard({ fail }: { fail: (s: string) => void }) {
   return <div><label>From date <input type="date" onChange={e => setFrom(e.target.value)} /></label><div className="grid" style={{ marginTop: 12 }}>{cards.map(([k, x]) => <div key={k} className="line" style={{ display: 'block' }}><p>{k}</p><b>{x}</b></div>)}</div></div>
 }
 
-function System({ fail }: { fail: (s: string) => void }) {
+export function System({ fail }: { fail: (s: string) => void }) {
   const [log, setLog] = useState<any[]>([]); const [staff, setStaff] = useState<any[]>([]); const [f, setF] = useState<any>({ role: 'staff' })
   const load = () => { supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(50).then(r => setLog(r.data || [])); supabase.from('admin_profiles').select('*').then(r => r.error ? fail(r.error.message) : setStaff(r.data || [])) }
   useEffect(load, [])
@@ -131,7 +105,7 @@ function System({ fail }: { fail: (s: string) => void }) {
     <Mfa /><NewsletterList fail={fail} /><h2>Audit log</h2>{log.map(l => <p key={l.id}>{new Date(l.created_at).toLocaleString('en-KE')} · {l.action} · {JSON.stringify(l.detail)}</p>)}</div>
 }
 
-function ReviewsAdmin({ fail }: { fail: (s: string) => void }) {
+export function ReviewsAdmin({ fail }: { fail: (s: string) => void }) {
   const [rows, setRows] = useState<any[]>([]); const load = () => supabase.from('product_reviews').select('*,products(name)').order('created_at', { ascending: false }).limit(100).then(r => r.error ? fail(r.error.message) : setRows(r.data || []))
   useEffect(() => { load() }, [])
   const set = (id: string, status: string) => supabase.from('product_reviews').update({ status }).eq('id', id).then(r => { fail(r.error?.message || ''); load() })
@@ -139,7 +113,7 @@ function ReviewsAdmin({ fail }: { fail: (s: string) => void }) {
     <button onClick={() => set(x.id, 'approved')}>Approve</button> <button onClick={() => set(x.id, 'rejected')}>Reject</button></div>)}</div>
 }
 
-function Catalogue({ fail }: { fail: (s: string) => void }) {
+export function Catalogue({ fail }: { fail: (s: string) => void }) {
   const [cats, setCats] = useState<any[]>([]); const [cols, setCols] = useState<any[]>([]); const [prods, setProds] = useState<any[]>([]); const [faqs, setFaqs] = useState<any[]>([]); const [cp, setCp] = useState<any>({}); const [promos, setPromos] = useState<any[]>([])
   const load = () => { supabase.from('categories').select('*').order('sort_order').then(r => setCats(r.data || [])); supabase.from('collections').select('*').order('sort_order').then(r => setCols(r.data || []))
     supabase.from('products').select('id,name').order('name').then(r => setProds(r.data || [])); supabase.from('faqs').select('*').order('sort_order').then(r => setFaqs(r.data || [])); supabase.from('promotions').select('*').order('created_at', { ascending: false }).then(r => setPromos(r.data || [])) }
@@ -171,18 +145,18 @@ export function Mfa() {
   const [e, setE] = useState<any>(null); const [code, setCode] = useState(''); const [m, setM] = useState('')
   const start = async () => { const r = await supabase.auth.mfa.enroll({ factorType: 'totp' }); r.error ? setM(r.error.message) : setE(r.data) }
   const verify = async () => { const c = await supabase.auth.mfa.challenge({ factorId: e.id }); if (c.error) return setM(c.error.message)
-    const v = await supabase.auth.mfa.verify({ factorId: e.id, challengeId: c.data.id, code }); setM(v.error ? v.error.message : 'Two-factor sign-in enabled for this account.') }
+    const v = await supabase.auth.mfa.verify({ factorId: e.id, challengeId: c.data.id, code }); if (v.error) setM(v.error.message); else location.reload() }
   return <div><h2>Two-factor sign-in (optional)</h2>{!e && <button onClick={start}>Set up authenticator app</button>}
     {e && <div><img src={e.totp.qr_code} alt="QR code for your authenticator app" width="180" /><p>Or enter this key: {e.totp.secret}</p><input aria-label="6-digit code" value={code} onChange={x => setCode(x.target.value)} /><button onClick={verify}>Verify</button></div>}{m && <p role="status">{m}</p>}</div>
 }
 
-function NewsletterList({ fail }: { fail: (s: string) => void }) {
+export function NewsletterList({ fail }: { fail: (s: string) => void }) {
   const [r, setR] = useState<any[]>([]); useEffect(() => { supabase.from('newsletter_subscribers').select('email,created_at').order('created_at', { ascending: false }).then(x => x.error ? fail(x.error.message) : setR(x.data || [])) }, [])
   const csv = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['email,subscribed\n' + r.map(x => x.email + ',' + x.created_at).join('\n')], { type: 'text/csv' })); a.download = 'subscribers.csv'; a.click() }
   return <div><h2>Newsletter subscribers ({r.length})</h2><button onClick={csv}>Download CSV</button></div>
 }
 
-function MfaGate() {
+export function MfaGate() {
   const [code, setCode] = useState(''); const [m, setM] = useState('')
   const go = async (e: React.FormEvent) => { e.preventDefault(); const f = await supabase.auth.mfa.listFactors(); const id = f.data?.totp?.[0]?.id; if (!id) return setM('No authenticator found.')
     const c = await supabase.auth.mfa.challenge({ factorId: id }); if (c.error) return setM(c.error.message)
